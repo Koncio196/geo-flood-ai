@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+
+# Środowisko i sekrety
+.env
+.env.*
+
+# Bazy danych i wolumeny Dockera
+postgis_data/
+geoserver_data/
+ollama_data/
+postgres_init/
+
+# Ciężkie dane przestrzenne
+raster_data/
+data/
+*.shp
+*.shx
+*.dbf
+*.prj
+*.tif
+*.gpkg
+
+# Logi i pliki systemowe
+*.log
+.DS_Store

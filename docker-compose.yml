@@ -1,0 +1,94 @@
+services:
+  postgis:
+    image: postgis/postgis:15-3.4
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: flood_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./data/postgres_init:/docker-entrypoint-initdb.d
+
+  geoserver:
+    image: kartoza/geoserver:2.24.0
+    container_name: geoserver
+    restart: unless-stopped
+    depends_on:
+      - postgis
+    environment:
+      - GEOSERVER_ADMIN_USER=${GEOSERVER_USER}
+      - GEOSERVER_ADMIN_PASSWORD=${GEOSERVER_PASSWORD}
+      # Ograniczenia RAM
+      - INITIAL_MEMORY=1G
+      - MAXIMUM_MEMORY=2G
+    ports:
+      - "8081:8080"
+    volumes:
+      - geoserver_data:/opt/geoserver/data_dir
+      - ./raster_data:/opt/geoserver/data_dir/rasters
+
+  # KONTENER BACKENDU (FastAPI + LangChain)
+  fastapi_backend:
+    build: "./backend"
+    container_name: backend
+    restart: unless-stopped
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 300
+    environment:
+      CHATBOT_USER: ${CHATBOT_USER}
+      CHATBOT_PASSWORD: ${CHATBOT_PASSWORD}
+      POSTGRES_DB: flood_db
+    depends_on:
+      - postgis
+    # Nie wystawiamy tu portów na zewnątrz (np. 8000:8000), 
+    # cały ruch z zewnątrz będzie szedł przez Nginx!
+    volumes:
+      - ./backend:/app
+      - ./raster_data:/app/raster_data # Żeby rasterio miało dostęp do GeoTIFFów
+
+  # DODANY KONTENER FRONTENDU / REVERSE PROXY
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - fastapi_backend
+      - geoserver
+    ports:
+      - "81:80" # Aplikacja będzie dostępna w przeglądarce pod adresem http://localhost:81
+    volumes:
+      # Mapowanie plików statycznych (Twój HTML/JS/CSS)
+      - ./frontend:/usr/share/nginx/html
+      # KLUCZOWE: Mapowanie konfiguracji Reverse Proxy
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+  
+  ollama:
+    image: ollama/ollama:latest
+    container_name: flood_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # TO JEST KLUCZOWA SEKCJA:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    #networks:
+      #- gis_network # prawodpodobnie powodował błąd w generowaniu odp AI
+
+#networks:
+#  gis_network:
+#    driver: bridge
+
+volumes:
+  postgis_data:
+  geoserver_data:
+  ollama_data:
