@@ -11,7 +11,7 @@ services:
       - "5434:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
-      - ./data/postgres_init:/docker-entrypoint-initdb.d
+      - ./postgres_init:/docker-entrypoint-initdb.d
 
   geoserver:
     image: kartoza/geoserver:2.24.0

@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from sqlalchemy import text
 from database import SessionLocal
+import re
 
 # --- KONFIGURACJA WARSTW GIS ---
 GIS_LAYERS = {
@@ -111,45 +112,87 @@ def get_buildings_risk_stats(analysis_type: str, city_name: str, building_functi
     """
     Oblicza liczbę budynków w strefie dla konkretnej gminy. 
     Argumenty: 
-    - analysis_type: 'current_flood' dla obszarów zalanych, dotkniętnych powodzią lub 'hazard_zone' dla obszarów zagrożonych, będących w strefie zagrożenia powodziowego
-    - city_name: nazwa gminy (np. 'Wrocław')
-    - building_function: opcjonalnie typ budynku
+    - analysis_type: 'current_flood' dla obszarów zalanych, dotkniętych powodzią lub 'hazard_zone' dla strefy zagrożenia powodziowego, obszarów zagrożonych powodzią.
+    - city_name: NAZWA GMINY.
+    - building_function: opcjonalnie typ budynku (np. "budynki mieszkalne", "budynki przemysłowe"). Jeśli podany, filtruje wyniki tylko do tego typu budynków.
+    Jeżeli użytkownik zapyta o Brzeg, to wtedy chodzi o Brzeg (miasto) w województwie opolskim.
     """
     mapping = {
         "current_flood": "zasieg_powodzi",
         "hazard_zone": "obszar_zagrozenia_powodziowego_1"
     }
-
+    
     if analysis_type not in mapping:
         return {"status": "error", "message": "Nieznany typ analizy."}
 
     target_table = GIS_LAYERS[mapping[analysis_type]]["table"]
     target_geom = GIS_LAYERS[mapping[analysis_type]]["geom_col"]
-    
-    # Dynamiczne pobranie kolumny funkcji (funkcjaogolnabudynku)
     func_col = list(GIS_LAYERS["budynki"]["function"].keys())[0]
 
     db = SessionLocal()
     try:
-        # 1. Budowanie klauzuli filtra (gmina jest teraz wymagana dla wydajności)
-        filter_clause = "AND g.nazwa ILIKE :city"
-        params = {"city": f"{city_name}"}
+        # --- KROK 1: INTELIGENTNE DOPASOWANIE NAZWY GMINY ---
+        clean_city_name = city_name.strip()
         
+        # Wycinamy słowa poboczne, z którymi LLM mógłby wysłać zapytanie
+        base_name = re.sub(r'\(?miasto\)?', '', clean_city_name, flags=re.IGNORECASE).strip()
+        base_name = re.sub(r'\bgmina\b', '', base_name, flags=re.IGNORECASE).strip()
+        base_name = base_name.replace('m.', '').strip()
+
+        # Podejście 1: Szukamy DOKŁADNEJ nazwy lub z dopiskiem (miasto)
+        city_query_exact = text("""
+            SELECT nazwa 
+            FROM gminy 
+            WHERE nazwa ILIKE :exact OR nazwa ILIKE :exact_miasto
+            LIMIT 1
+        """)
+        official_name = db.execute(city_query_exact, {
+            "exact": base_name, 
+            "exact_miasto": f"{base_name} (miasto)"
+        }).scalar()
+
+        # Podejście 2: Dopiero jak nie znajdzie idealnego, szuka jako fragment tekstu
+        if not official_name:
+            city_query_like = text("""
+                SELECT nazwa 
+                FROM gminy 
+                WHERE nazwa ILIKE :c_like
+                ORDER BY length(nazwa) ASC
+                LIMIT 1
+            """)
+            official_name = db.execute(city_query_like, {"c_like": f"%{base_name}%"}).scalar()
+
+        # Podejście 3: Koło ratunkowe (Fuzzy Matching na literówki)
+        if not official_name:
+            city_query_fuzzy = text("""
+                SELECT nazwa 
+                FROM gminy 
+                ORDER BY nazwa <-> :c 
+                LIMIT 1
+            """)
+            official_name = db.execute(city_query_fuzzy, {"c": clean_city_name}).scalar()
+            
+        if not official_name:
+            return {"status": "error", "message": f"Nie udało się dopasować gminy do: {city_name}"}
+
+        # --- KROK 2: WŁAŚCIWE ZAPYTANIE PRZESTRZENNE ---
+        params = {"official_city": official_name}
+        filter_sql = ""
         if building_function:
-            filter_clause += f" AND b.{func_col} = :b_func"
+            filter_sql = f"AND b.{func_col} = :b_func"
             params["b_func"] = building_function
 
-        # 2. Query z JOINem do gmin, żeby ograniczyć obszar przetwarzania
         query = text(f"""
             SELECT COUNT(b.geom) 
             FROM budynki b
-            JOIN gminy g ON ST_Intersects(b.geom, g.geom)
-            WHERE EXISTS (
+            JOIN gminy g ON ST_Intersects(ST_Centroid(b.geom), g.geom)
+            WHERE g.nazwa = :official_city
+            AND EXISTS (
                 SELECT 1 
                 FROM "{target_table}" t 
-                WHERE ST_Intersects(b.geom, t.{target_geom})
+                WHERE ST_Intersects(ST_Centroid(b.geom), t.{target_geom})
                 AND ST_Intersects(t.{target_geom}, g.geom)
-            ) {filter_clause};
+            ) {filter_sql};
         """)
         
         result = db.execute(query, params).scalar()
@@ -157,8 +200,8 @@ def get_buildings_risk_stats(analysis_type: str, city_name: str, building_functi
         return {
             "status": "success",
             "count": result,
-            "city": city_name,
-            "details": f"Znaleziono {result} obiektów w gminie {city_name}."
+            "city": official_name,
+            "details": f"Dla gminy {official_name} znaleziono {result} obiektów."
         }
     except Exception as e:
         return {"status": "error", "error_message": str(e)}

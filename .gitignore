@@ -13,7 +13,6 @@ env/
 postgis_data/
 geoserver_data/
 ollama_data/
-postgres_init/
 
 # Ciężkie dane przestrzenne
 raster_data/
