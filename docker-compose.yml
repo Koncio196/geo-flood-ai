@@ -6,6 +6,8 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CHATBOT_USER: ${CHATBOT_USER}
+      CHATBOT_PASSWORD: ${CHATBOT_PASSWORD}
       POSTGRES_DB: flood_db
     ports:
       - "5434:5432"

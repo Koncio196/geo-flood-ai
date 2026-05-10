@@ -27,3 +27,7 @@ data/
 # Logi i pliki systemowe
 *.log
 .DS_Store
+
+# Backupy
+geoserver_config_backup
+flood_db_backup.sql
