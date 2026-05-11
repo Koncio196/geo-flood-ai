@@ -264,19 +264,28 @@ overlays.forEach(item => {
         // Ignoruj kliknięcie, jeśli użytkownik kliknął tylko w sam włącznik (żeby nie zmieniać wyboru)
         if (e.target.closest('.switch')) return;
 
-        // Usuń klasę 'selected' ze wszystkich elementów
+        // NOWOŚĆ: Sprawdzamy, czy kliknięty element jest już zaznaczony
+        const isAlreadySelected = div.classList.contains('selected');
+
+        // Najpierw i tak usuwamy klasę 'selected' ze wszystkich elementów
         document.querySelectorAll('.layer-item').forEach(el => el.classList.remove('selected'));
         
-        // Dodaj klasę do klikniętego
-        div.classList.add('selected');
-        
-        // Ustaw aktywną warstwę w pamięci
-        activeQueryLayer = item.layer;
-        
-        // Wyczyść panel z poprzednich informacji
-        document.getElementById('feature-info').innerHTML = 
-            `<p style="color: #004d26; font-weight: bold;">Aktywna warstwa: ${item.name}</p>
-             <p style="color: #666; font-style: italic; font-size: 13px;">Kliknij w obiekt na mapie, aby pobrać atrybuty.</p>`;
+        if (isAlreadySelected) {
+            // SCENARIUSZ 1: Element był już zaznaczony, więc go ODKLIKUJEMY
+            activeQueryLayer = null;
+            document.getElementById('feature-info').innerHTML = 
+                `<p style="color: #666; font-style: italic; font-size: 13px;">
+                    Kliknij obiekt na mapie, aby pobrać atrybuty z bazy PostGIS.
+                </p>`;
+        } else {
+            // SCENARIUSZ 2: Element nie był zaznaczony, więc go ZAZNACZAMY
+            div.classList.add('selected');
+            activeQueryLayer = item.layer; // Ustaw aktywną warstwę w pamięci
+            
+            document.getElementById('feature-info').innerHTML = 
+                `<p style="color: #004d26; font-weight: bold;">Aktywna warstwa: ${item.name}</p>
+                 <p style="color: #666; font-style: italic; font-size: 13px;">Kliknij w obiekt na mapie, aby pobrać atrybuty.</p>`;
+        }
     });
 
     layerListDiv.appendChild(div);
