@@ -34,7 +34,7 @@ const budynki = L.tileLayer.wms('/geoserver/wms', {
     transparent: true,
     version: '1.1.1',
     zIndex: 20
-});
+}).addTo(map);
 
 const drogi = L.tileLayer.wms('/geoserver/wms', {
     layers: 'flood_ai:drogi', 
@@ -42,14 +42,14 @@ const drogi = L.tileLayer.wms('/geoserver/wms', {
     transparent: true,
     version: '1.1.1',
     zIndex: 19
-});
+}).addTo(map);
 
 const wojewodztwa = L.tileLayer.wms('/geoserver/wms', {
     layers: 'flood_ai:wojewodztwa', 
     format: 'image/png',
     transparent: true,
     version: '1.1.1',
-    zIndex: 10
+    zIndex: 12
 }).addTo(map); 
 
 const powiaty = L.tileLayer.wms('/geoserver/wms', {
@@ -57,7 +57,7 @@ const powiaty = L.tileLayer.wms('/geoserver/wms', {
     format: 'image/png',
     transparent: true,
     version: '1.1.1',
-    zIndex: 10
+    zIndex: 11
 }).addTo(map);
 
 const gminy = L.tileLayer.wms('/geoserver/wms', {
@@ -73,8 +73,16 @@ const max_powodz = L.tileLayer.wms('/geoserver/wms', {
     format: 'image/png',
     transparent: true,
     version: '1.1.1',
+    zIndex: 5
+});
+
+const copernicus_benchamrk = L.tileLayer.wms('/geoserver/wms', {
+    layers: 'flood_ai:copernicus_flood_area', 
+    format: 'image/png',
+    transparent: true,
+    version: '1.1.1',
     zIndex: 4
-}).addTo(map);
+});
 
 const ozp_1 = L.tileLayer.wms('/geoserver/wms', {
     layers: 'flood_ai:obszar_zagrozenia_powodziowego_1', 
@@ -82,7 +90,7 @@ const ozp_1 = L.tileLayer.wms('/geoserver/wms', {
     transparent: true,
     version: '1.1.1',
     zIndex: 3
-}).addTo(map);
+});
 
 const max_powodz_raster = L.tileLayer.wms('/geoserver/wms', {
     layers: 'flood_ai:MaxZarejestrowanyZasiegPowodzi', 
@@ -90,7 +98,7 @@ const max_powodz_raster = L.tileLayer.wms('/geoserver/wms', {
     transparent: true,
     version: '1.1.1',
     zIndex: 2
-}).addTo(map);
+});
 
 // NOWE: Tablica dostępnych dat z Twoich rastrów
 // Wpisz tutaj chronologicznie wszystkie daty, które masz w nazwach plików
@@ -191,6 +199,7 @@ const overlays = [
     { name: "Budynki", layer: budynki, active: false},
     { name: "Drogi", layer: drogi, active: false},
     { name: "Obszar zagrożenia powodziowego 1%", layer: ozp_1, active: false},
+    { name: "CEMS - Rapid Mapping", layer: copernicus_benchamrk, active: false},
     { name: "Maksymalny Zaobserowany Zasięg Powodzi", layer: max_powodz, active: false},
     { name: "Mozaika wartości minimalnej Sentinel-1", layer: max_powodz_raster, active: false},
     // NOWE: Dodana warstwa szeregu czasowego ze specjalną flagą isTimelapse
