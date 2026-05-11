@@ -305,8 +305,14 @@ map.on('click', function(e) {
 
     infoPanel.innerHTML = '<p>Pobieranie atrybutów z bazy PostGIS...</p>';
 
-    // Budowa URL do GeoServera (Wymuszamy format JSON, aby łatwo zbudować tabelkę)
-    const url = `/geoserver/wms?request=GetFeatureInfo&service=WMS&srs=EPSG:3857&styles=&transparent=true&version=1.1.1&format=image/png&bbox=${bbox}&height=${size.y}&width=${size.x}&layers=${layerName}&query_layers=${layerName}&info_format=application/json&x=${Math.round(point.x)}&y=${Math.round(point.y)}`;
+    // Budowa bazowego URL do GeoServera (Zmienione na 'let', żeby można było modyfikować)
+    let url = `/geoserver/wms?request=GetFeatureInfo&service=WMS&srs=EPSG:3857&styles=&transparent=true&version=1.1.1&format=image/png&bbox=${bbox}&height=${size.y}&width=${size.x}&layers=${layerName}&query_layers=${layerName}&info_format=application/json&x=${Math.round(point.x)}&y=${Math.round(point.y)}`;
+
+    // NOWOŚĆ: Sprawdzamy, czy aktywna warstwa ma ustawiony parametr czasu (WMS Params). 
+    // Jeśli tak (co ma miejsce dla Twoich rastrów z suwakiem), doklejamy go do zapytania.
+    if (activeQueryLayer.wmsParams && activeQueryLayer.wmsParams.TIME) {
+        url += `&TIME=${activeQueryLayer.wmsParams.TIME}`;
+    }
 
     fetch(url)
         .then(response => response.json())
