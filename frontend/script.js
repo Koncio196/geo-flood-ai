@@ -81,7 +81,7 @@ const copernicus_benchamrk = L.tileLayer.wms('/geoserver/wms', {
     format: 'image/png',
     transparent: true,
     version: '1.1.1',
-    zIndex: 4
+    zIndex: 6
 });
 
 const ozp_1 = L.tileLayer.wms('/geoserver/wms', {
@@ -196,8 +196,8 @@ const overlays = [
     { name: "Województwa", layer: wojewodztwa, active: true},
     { name: "Powiaty", layer: powiaty, active: true},
     { name: "Gminy", layer: gminy, active: true},
-    { name: "Budynki", layer: budynki, active: false},
-    { name: "Drogi", layer: drogi, active: false},
+    { name: "Budynki", layer: budynki, active: true},
+    { name: "Drogi", layer: drogi, active: true},
     { name: "Obszar zagrożenia powodziowego 1%", layer: ozp_1, active: false},
     { name: "CEMS - Rapid Mapping", layer: copernicus_benchamrk, active: false},
     { name: "Maksymalny Zaobserowany Zasięg Powodzi", layer: max_powodz, active: false},
