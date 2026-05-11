@@ -41,6 +41,13 @@
                 <button class="tool-btn" id="btn-measure-area" title="Pomiar powierzchni">⬠</button>
                 <button class="tool-btn danger" onclick="clearMeasurements()" title="Usuń pomiary">🗑️</button>
             </div>
+
+            <div class="time-slider-container" id="time-slider-container" style="display: none;">
+                <div class="time-slider-header">
+                    Data obrazowania: <strong id="time-slider-label">...</strong>
+                </div>
+                <input type="range" id="time-slider" min="0" max="0" value="0" step="1">
+            </div>
         </div>
 
         <div class="sidebar-right">
@@ -53,7 +60,7 @@
                 </div>
             </div>
             <div class="ai-chat-panel">
-                <h3>Asystent AI (GeoAI)</h3>
+                <h3>Chatbot AI</h3>
                 <div class="chat-messages" id="chat-messages">
                     <div class="message ai-message">Witaj! W czym mogę pomóc?</div>
                 </div>

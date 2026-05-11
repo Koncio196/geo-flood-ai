@@ -26,12 +26,13 @@ services:
       - GEOSERVER_ADMIN_PASSWORD=${GEOSERVER_PASSWORD}
       # Ograniczenia RAM
       - INITIAL_MEMORY=1G
-      - MAXIMUM_MEMORY=2G
+      - MAXIMUM_MEMORY=8G
     ports:
       - "8081:8080"
     volumes:
       - geoserver_data:/opt/geoserver/data_dir
-      - ./raster_data:/opt/geoserver/data_dir/rasters
+      - ./raster_data/rasters:/opt/geoserver/data_dir/rasters
+      - ./raster_data/timelapse_rasters:/opt/geoserver/data_dir/timelapse_rasters:z # NOWOŚĆ: dla szeregów czasowych
 
   # KONTENER BACKENDU (FastAPI + LangChain)
   fastapi_backend:

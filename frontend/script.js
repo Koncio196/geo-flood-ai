@@ -92,6 +92,34 @@ const max_powodz_raster = L.tileLayer.wms('/geoserver/wms', {
     zIndex: 2
 }).addTo(map);
 
+// NOWE: Tablica dostępnych dat z Twoich rastrów
+// Wpisz tutaj chronologicznie wszystkie daty, które masz w nazwach plików
+const timelapseDates = [
+    '2024-09-10',
+    '2024-09-11',
+    '2024-09-13', 
+    '2024-09-15',
+    '2024-09-16',
+    '2024-09-18', 
+    '2024-09-20',
+    '2024-09-22',
+    '2024-09-23', 
+    '2024-09-25',
+    '2024-09-27',
+    '2024-09-28',
+    '2024-09-30',
+    '2024-10-02'
+];
+
+const timelapse_rasters = L.tileLayer.wms('/geoserver/wms', {
+    layers: 'flood_ai:timelapse_rasters', 
+    format: 'image/png',
+    transparent: true,
+    version: '1.1.1',
+    zIndex: 5,
+    TIME: timelapseDates[0] // Ustawiamy pierwszą datę jako domyślną
+});
+
 // Zmienna globalna trzymająca aktywną warstwę do odpytywania
 let activeQueryLayer = null;
 
@@ -160,14 +188,37 @@ const overlays = [
     { name: "Województwa", layer: wojewodztwa, active: true},
     { name: "Powiaty", layer: powiaty, active: true},
     { name: "Gminy", layer: gminy, active: true},
-	{ name: "Budynki", layer: budynki, active: false},
+    { name: "Budynki", layer: budynki, active: false},
     { name: "Drogi", layer: drogi, active: false},
     { name: "Obszar zagrożenia powodziowego 1%", layer: ozp_1, active: false},
-    { name: "Maksymalny Zaobserowany Zasięg Powodzi [10-09-2024 - 03-10-2024]", layer: max_powodz, active: true},
-    { name: "Mozaika wartości minimalnej Sentinel-1 [10-09-2024 - 03-10-2024]", layer: max_powodz_raster, active: false}
+    { name: "Maksymalny Zaobserowany Zasięg Powodzi", layer: max_powodz, active: false},
+    { name: "Mozaika wartości minimalnej Sentinel-1", layer: max_powodz_raster, active: false},
+    // NOWE: Dodana warstwa szeregu czasowego ze specjalną flagą isTimelapse
+    { name: "Rastry Zasięgu Powodzi (Szereg Czasowy)", layer: timelapse_rasters, active: false, isTimelapse: true}
 ];
 
 const layerListDiv = document.getElementById('layer-list');
+const sliderContainer = document.getElementById('time-slider-container');
+const timeSlider = document.getElementById('time-slider');
+const timeLabel = document.getElementById('time-slider-label');
+
+// NOWE: Blokujemy przenikanie zdarzeń myszy i scrolla z suwaka na mapę
+L.DomEvent.disableClickPropagation(sliderContainer);
+L.DomEvent.disableScrollPropagation(sliderContainer);
+
+// Konfiguracja suwaka na podstawie długości tablicy
+timeSlider.max = timelapseDates.length - 1;
+timeLabel.textContent = timelapseDates[0];
+
+// Aktualizacja warstwy przy ruszaniu suwakiem
+timeSlider.addEventListener('input', function(e) {
+    const index = e.target.value;
+    const selectedDate = timelapseDates[index];
+    timeLabel.textContent = selectedDate; // Aktualizacja tekstu
+    
+    // Kluczowa funkcja: Leaflet zmienia parametr WMS i odświeża kafle
+    timelapse_rasters.setParams({ TIME: selectedDate });
+});
 
 overlays.forEach(item => {
     const div = document.createElement('div');
@@ -184,8 +235,19 @@ overlays.forEach(item => {
     // A) LOGIKA WŁĄCZANIA/WYŁĄCZANIA WARSTWY NA MAPIE
     const checkbox = div.querySelector('input');
     checkbox.addEventListener('change', function(e) {
-        if (this.checked) map.addLayer(item.layer);
-        else map.removeLayer(item.layer);
+        if (this.checked) {
+            map.addLayer(item.layer);
+            // Pokaż suwak, jeśli to warstwa timelapse
+            if (item.isTimelapse) {
+                sliderContainer.style.display = 'flex';
+            }
+        } else {
+            map.removeLayer(item.layer);
+            // Ukryj suwak, jeśli warstwa jest wyłączana
+            if (item.isTimelapse) {
+                sliderContainer.style.display = 'none';
+            }
+        }
     });
 
     // B) LOGIKA ZAZNACZANIA AKTYWNEJ WARSTWY (QGIS Style)
@@ -335,7 +397,7 @@ async function sendMessage() {
 
     try {
         // 3. Wysłanie POST do Nginxa (który przekaże to do FastAPI)
-        const response = await fetch('api/chat', {
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

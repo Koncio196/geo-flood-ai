@@ -288,3 +288,41 @@ tr:nth-child(even) { background-color: #f2f2f2; } /* Zebra dla czytelności */
 	border-radius: 0 0 4px 4px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
+
+/* ==========================================
+   8. SUWAK CZASU (TIME SLIDER)
+   ========================================== */
+.time-slider-container {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 350px;
+    border: 2px solid #004d26;
+}
+
+.time-slider-header {
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #333;
+}
+
+.time-slider-header strong {
+    color: #004d26;
+    font-size: 16px;
+    margin-left: 5px;
+}
+
+#time-slider {
+    width: 100%;
+    cursor: pointer;
+    accent-color: #004d26; /* Natywny kolor w nowoczesnych przeglądarkach */
+}
