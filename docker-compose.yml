@@ -51,6 +51,16 @@ services:
     volumes:
       - ./backend:/app
       - ./raster_data:/app/raster_data # Żeby rasterio miało dostęp do GeoTIFFów
+  
+  vue_frontend:
+    build: "./frontend"
+    container_name: vue_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Anonimowy wolumen zapobiegający nadpisywaniu modułów przez hosta
 
   # DODANY KONTENER FRONTENDU / REVERSE PROXY
   nginx:
@@ -60,11 +70,10 @@ services:
     depends_on:
       - fastapi_backend
       - geoserver
+      - vue_frontend # Nowość
     ports:
       - "81:80" # Aplikacja będzie dostępna w przeglądarce pod adresem http://localhost:81
     volumes:
-      # Mapowanie plików statycznych (Twój HTML/JS/CSS)
-      - ./frontend:/usr/share/nginx/html
       # KLUCZOWE: Mapowanie konfiguracji Reverse Proxy
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
   

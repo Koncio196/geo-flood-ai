@@ -1,86 +1,13 @@
-<!doctype html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8" />
-    <title>GeoFloodAI</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-</head>
-<body>
-    <div class="container">
-        
-        <div class="header">
-            GeoFloodAI
-        </div>
-
-        <div class="sidebar-left">
-            <h3>Podkłady mapowe</h3>
-            <div id="map-list"></div>
-            
-            <h3>Warstwy</h3>
-            <div id="layer-list"></div>
-            
-            <div id="legend-container">
-                <h3>Legenda</h3>
-            </div>
-        </div>
-
-        <div id="map">
-            <div class="map-tools">
-                <button class="tool-btn" onclick="adjustZoom(1)" title="Przybliż">+</button>
-                <button class="tool-btn" onclick="adjustZoom(-1)" title="Oddal">-</button>
-                <button id="btn-sidebar-toggle" class="tool-btn active" title="Pokaż/Ukryj panel warstw" style="margin-top: 5px">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                        <polyline points="2 17 12 22 22 17"></polyline>
-                        <polyline points="2 12 12 17 22 12"></polyline>
-                    </svg>
-                </button>
-                <button class="tool-btn" id="btn-measure-dist" title="Pomiar odległości" style="margin-top: 10px">📏</button>
-                <button class="tool-btn" id="btn-measure-area" title="Pomiar powierzchni">⬠</button>
-                <button class="tool-btn danger" onclick="clearMeasurements()" title="Usuń pomiary">🗑️</button>
-            </div>
-
-            <div class="time-slider-container" id="time-slider-container" style="display: none;">
-                <div class="time-slider-header">
-                    Data obrazowania: <strong id="time-slider-label">...</strong>
-                </div>
-                <input type="range" id="time-slider" min="0" max="0" value="0" step="1">
-            </div>
-        </div>
-
-        <div class="sidebar-right">
-            <div class="feature-info-panel">
-                <h3>Informacje o obiekcie</h3>
-                <div class="info-content" id="feature-info">
-                    <p style="color: #666; font-style: italic; font-size: 13px;">
-                        Kliknij obiekt na mapie, aby pobrać atrybuty z bazy PostGIS.
-                    </p>
-                </div>
-            </div>
-            <div class="ai-chat-panel">
-                <h3>Chatbot AI</h3>
-                <div class="chat-messages" id="chat-messages">
-                    <div class="message ai-message">Witaj! W czym mogę pomóc?</div>
-                </div>
-                <div class="chat-input-area">
-                    <textarea id="chat-input" placeholder="Zadaj pytanie..."></textarea>
-                    <button id="btn-send-chat">Wyślij</button>
-                </div>
-            </div>
-        </div> <div class="footer">
-            <div class="footer-left">
-                Układ wyświetlania: EPSG:3857 (WGS 84 / Pseudo-Mercator)
-            </div>
-            <div class="footer-center" id="mouse-coords">
-                Lat: --, Lon: --
-            </div>
-			<div class="footer-right">
-                Autor: Paweł Konecki
-            </div>
-        </div>
-
-    </div> <script src="script.js"></script>
-</body>
+<!DOCTYPE html>
+<html lang="">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vite App</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
