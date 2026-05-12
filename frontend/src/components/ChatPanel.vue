@@ -26,7 +26,7 @@
 import { ref, nextTick } from 'vue'
 
 const messages = ref([
-  { text: 'Cześć, jestem Chatbotem Geoportalu Zagrożenia Powodziowego😊. W czym mogę Ci pomóc?', isBot: true }
+  { text: 'Witaj! W czym mogę pomóc?', isBot: true }
 ])
 const userInput = ref('')
 const chatHistoryRef = ref(null)

@@ -26,7 +26,7 @@ services:
       - GEOSERVER_ADMIN_PASSWORD=${GEOSERVER_PASSWORD}
       # Ograniczenia RAM
       - INITIAL_MEMORY=1G
-      - MAXIMUM_MEMORY=8G
+      - MAXIMUM_MEMORY=4G
     ports:
       - "8081:8080"
     volumes:
