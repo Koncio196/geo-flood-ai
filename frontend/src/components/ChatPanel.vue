@@ -79,7 +79,7 @@ const sendMessage = async () => {
 
 <style scoped>
 .btn-disabled {
-  background-color: #8bb4e6 !important;
+  background-color: #6e6e6e !important;
   cursor: not-allowed !important;
 }
 
@@ -102,27 +102,57 @@ const sendMessage = async () => {
   100% { opacity: 0.2; }
 }
 
-/* Nadpisanie domyślnego inputa, by wyglądał jak na Twoim oryginalnym designie */
+/* --- ZAKTUALIZOWANE STYLE DLA POLA I PRZYCISKU --- */
+
+.chat-input-area {
+  display: flex;
+  padding: 10px;
+  background-color: #eee;
+  border-top: 1px solid #ccc;
+  align-items: center; /* Upewnia się, że elementy są idealnie wyśrodkowane w pionie */
+}
+
 #chat-input {
   flex: 1;
   height: 40px;
-  padding: 0 10px;
+  padding: 0 16px; /* Zwiększony padding boczny, aby tekst nie nachodził na łuk */
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 20px; /* Idealne zaokrąglenie (połowa wysokości 40px) dla kształtu "pigułki" */
   font-family: inherit;
   font-size: 13px;
   outline: none;
+  transition: border-color 0.2s ease;
 }
+
+#chat-input:focus {
+  border-color: #004d26; /* Lekki akcent wizualny po kliknięciu w pole */
+}
+
 #btn-send-chat {
   margin-left: 10px;
   background-color: #004d26;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%; /* Zmienia kwadrat w idealne koło */
   cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
   width: 40px;
   height: 40px;
+  flex-shrink: 0; /* Zapobiega ściskaniu przycisku, gdy tekst jest bardzo długi */
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+#btn-send-chat:hover:not(.btn-disabled) {
+  background-color: #006b35; /* Efekt najechania dla lepszego UX */
+}
+
+#btn-send-chat:active:not(.btn-disabled) {
+  transform: scale(0.95); /* Delikatny efekt "wkliknięcia" */
+}
+
+/* Przesunięcie ikony lekko w prawo - ikony "papierowych samolotów" często wydają się nie wyśrodkowane optycznie w kołach */
+#btn-send-chat svg {
+  margin-left: 2px; 
 }
 </style>
