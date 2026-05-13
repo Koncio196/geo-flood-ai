@@ -10,8 +10,10 @@
             <polyline points="2 12 12 17 22 12"></polyline>
         </svg>
       </button>
-      <button class="tool-btn" id="btn-measure-dist" title="Pomiar odległości" style="margin-top: 10px">📏</button>
-      <button class="tool-btn" id="btn-measure-area" title="Pomiar powierzchni">⬠</button>
+      
+      <button class="tool-btn" :class="{ 'active': activeMeasurementTool === 'length' }" @click="toggleMeasurement('length')" title="Pomiar odległości" style="margin-top: 10px">📏</button>
+      <button class="tool-btn" :class="{ 'active': activeMeasurementTool === 'area' }" @click="toggleMeasurement('area')" title="Pomiar powierzchni">⬠</button>
+      <button class="tool-btn danger" @click="clearMeasurements" title="Kasuj pomiary">🗑️</button>
     </div>
 
     <div v-if="isTimelapseVisible" class="time-slider-container">
@@ -26,6 +28,8 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useMapStore } from '@/stores/mapStore'
+
+// --- GŁÓWNE IMPORTY OPENLAYERS ---
 import Map from 'ol/Map'
 import View from 'ol/View'
 import TileLayer from 'ol/layer/Tile'
@@ -33,15 +37,136 @@ import OSM from 'ol/source/OSM'
 import TileWMS from 'ol/source/TileWMS'
 import { fromLonLat, toLonLat } from 'ol/proj'
 
+// --- IMPORTY DO POMIARÓW I RYSOWANIA ---
+import VectorLayer from 'ol/layer/Vector'
+import VectorSource from 'ol/source/Vector'
+import Draw from 'ol/interaction/Draw'
+import Overlay from 'ol/Overlay'
+import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style'
+import { getArea, getLength } from 'ol/sphere'
+import { unByKey } from 'ol/Observable'
+
 const store = useMapStore()
 const mapContainer = ref(null)
 let olMap = null
-const olLayers = {} // Obiekt przechowujący instancje warstw OpenLayers
+const olLayers = {} 
+
+// --- STAN I ZMIENNE DLA POMIARÓW ---
+const activeMeasurementTool = ref(null) // 'length', 'area' lub null
+let measureSource = null
+let measureLayer = null
+let drawInteraction = null
+let measureTooltipElement = null
+let measureTooltipOverlay = null
+let sketch = null
+let listener = null
 
 const isTimelapseVisible = computed(() => {
   const layer = store.overlays.find(l => l.id === 'timelapse')
   return layer && layer.visible
 })
+
+// Funkcja tworząca dynamiczny "dymek" na bieżący wynik pomiaru
+const createMeasureTooltip = () => {
+  if (measureTooltipElement) {
+    measureTooltipElement.parentNode.removeChild(measureTooltipElement)
+  }
+  measureTooltipElement = document.createElement('div')
+  measureTooltipElement.className = 'ol-tooltip ol-tooltip-measure'
+  measureTooltipOverlay = new Overlay({
+    element: measureTooltipElement,
+    offset: [0, -15],
+    positioning: 'bottom-center',
+    stopEvent: false,
+    insertFirst: false,
+  })
+  olMap.addOverlay(measureTooltipOverlay)
+}
+
+// Funkcja aktywująca/dezaktywująca narzędzie rysowania
+const toggleMeasurement = (type) => {
+  if (drawInteraction) {
+    olMap.removeInteraction(drawInteraction)
+    drawInteraction = null
+  }
+
+  // Jeśli kliknięto to samo narzędzie - wyłącz je
+  if (activeMeasurementTool.value === type) {
+    activeMeasurementTool.value = null
+    return 
+  }
+
+  activeMeasurementTool.value = type
+  
+  const geometryType = type === 'length' ? 'LineString' : 'Polygon'
+  
+  drawInteraction = new Draw({
+    source: measureSource,
+    type: geometryType,
+    style: new Style({
+      fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
+      stroke: new Stroke({ color: 'rgba(0, 0, 0, 0.5)', lineDash: [10, 10], width: 2 }),
+      image: new CircleStyle({ radius: 5, stroke: new Stroke({ color: 'rgba(0, 0, 0, 0.7)' }), fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }) })
+    })
+  })
+
+  olMap.addInteraction(drawInteraction)
+  createMeasureTooltip()
+
+  // Gdy zaczynamy rysować nową linię/poligon
+  drawInteraction.on('drawstart', (evt) => {
+    sketch = evt.feature
+    let tooltipCoord = evt.coordinate
+
+    // Aktualizuj na bieżąco podczas przesuwania myszki
+    listener = sketch.getGeometry().on('change', (evt) => {
+      const geom = evt.target
+      let output
+      if (geom.getType() === 'Polygon') {
+        const area = getArea(geom)
+        output = (area / 10000).toFixed(3) + ' ha' // Przeliczenie na hektary
+        tooltipCoord = geom.getInteriorPoint().getCoordinates()
+      } else if (geom.getType() === 'LineString') {
+        const length = getLength(geom)
+        output = (length / 1000).toFixed(3) + ' km' // Przeliczenie na kilometry
+        tooltipCoord = geom.getLastCoordinate()
+      }
+      measureTooltipElement.innerHTML = output
+      measureTooltipOverlay.setPosition(tooltipCoord)
+    })
+  })
+
+  // Gdy kończymy rysowanie (np. podwójne kliknięcie)
+  drawInteraction.on('drawend', () => {
+    measureTooltipElement.className = 'ol-tooltip ol-tooltip-static'
+    measureTooltipOverlay.setOffset([0, -7])
+    sketch = null
+    measureTooltipElement = null
+    createMeasureTooltip() // Przygotuj nowy dymek pod kolejny pomiar
+    unByKey(listener)
+  })
+}
+
+// Funkcja czyszczenia mapy z pomiarów i rysunków
+const clearMeasurements = () => {
+  if (measureSource) measureSource.clear()
+  
+  // Usuń wszystkie utrwalone dymki pomiarowe
+  const overlays = olMap.getOverlays().getArray()
+  for (let i = overlays.length - 1; i >= 0; i--) {
+    const overlay = overlays[i]
+    const element = overlay.getElement()
+    if (element && element.classList.contains('ol-tooltip-static')) {
+      olMap.removeOverlay(overlay)
+    }
+  }
+
+  // Odśwież bieżący dymek roboczy, jeśli narzędzie jest nadal włączone
+  if (activeMeasurementTool.value) {
+    olMap.removeOverlay(measureTooltipOverlay)
+    createMeasureTooltip()
+  }
+}
 
 onMounted(() => {
   // 1. Inicjalizacja Mapy
@@ -82,20 +207,36 @@ onMounted(() => {
         serverType: 'geoserver',
       }),
       visible: layer.visible,
-      zIndex: 10 // Uproszczony Z-Index dla przykładu
+      zIndex: 10 
     })
     olMap.addLayer(olLayers[layer.id])
   })
 
-  // 4. Śledzenie kursora
+  // 4. Inicjalizacja warstwy wektorowej dla POMIARÓW
+  measureSource = new VectorSource()
+  measureLayer = new VectorLayer({
+    source: measureSource,
+    style: new Style({
+      fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
+      stroke: new Stroke({ color: '#ffcc33', width: 2 }),
+      image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#ffcc33' }) })
+    }),
+    zIndex: 9999 // Pomiary muszą być zawsze widoczne na wierzchu!
+  })
+  olMap.addLayer(measureLayer)
+
+  // 5. Śledzenie kursora
   olMap.on('pointermove', (evt) => {
     if (evt.dragging) return
     const coords = toLonLat(evt.coordinate)
-    store.updateCoordinates(coords[1].toFixed(4), coords[0].toFixed(4)) // Lat, Lon
+    store.updateCoordinates(coords[1].toFixed(4), coords[0].toFixed(4)) 
   })
 
-  // 5. ZAPYTANIE GetFeatureInfo (Kliknięcie)
+  // 6. ZAPYTANIE GetFeatureInfo (Kliknięcie)
   olMap.on('singleclick', async (evt) => {
+    // KLUCZOWE: Jeśli aktualnie mierzymy, ignorujemy to kliknięcie (nie odpytujemy bazy)
+    if (activeMeasurementTool.value) return;
+
     if (!store.activeLayerId) {
       store.featureInfoHtml = '<p style="color: #cc0000; font-weight: bold;">Najpierw zaznacz warstwę na liście po lewej stronie.</p>'
       return
@@ -105,7 +246,6 @@ onMounted(() => {
     const activeLayer = olLayers[store.activeLayerId]
     const viewResolution = olMap.getView().getResolution()
     
-    // Potężna funkcja OpenLayers - sama buduje URL do WMS-a!
     const url = activeLayer.getSource().getFeatureInfoUrl(
       evt.coordinate, viewResolution, 'EPSG:3857', { 'INFO_FORMAT': 'application/json' }
     )
@@ -132,7 +272,7 @@ onMounted(() => {
   })
 })
 
-// Obserwatory (Watchers) - Reaktywność Vue połączona z OpenLayers
+// Obserwatory (Watchers)
 watch(() => store.baseMaps, (newBaseMaps) => {
   newBaseMaps.forEach(map => olLayers[map.id].setVisible(map.visible))
 }, { deep: true })
@@ -141,10 +281,8 @@ watch(() => store.overlays, (newOverlays) => {
   newOverlays.forEach(layer => olLayers[layer.id].setVisible(layer.visible))
 }, { deep: true })
 
-// Aktualizacja warstwy Timelapse
 watch(() => store.currentTimelapseDate, (newDate) => {
   if(olLayers['timelapse']) {
-    // Aktualizujemy parametr TIME źródła i odświeżamy kafelki!
     olLayers['timelapse'].getSource().updateParams({ 'TIME': newDate })
   }
 })
@@ -155,3 +293,45 @@ const zoom = (delta) => {
   view.animate({ zoom: view.getZoom() + delta, duration: 250 })
 }
 </script>
+
+<style scoped>
+/* -------------------------------------
+   STYLE DLA NAKŁADEK (TOOLTIPÓW) POMIARU
+   ------------------------------------- */
+.ol-tooltip {
+  position: relative;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  color: white;
+  padding: 4px 8px;
+  opacity: 0.7;
+  white-space: nowrap;
+  font-size: 12px;
+  cursor: default;
+  user-select: none;
+}
+.ol-tooltip-measure {
+  opacity: 1;
+  font-weight: bold;
+}
+.ol-tooltip-static {
+  background-color: #004d26; /* Używamy Twojego głównego zielonego koloru */
+  color: white;
+  border: 1px solid white;
+}
+/* Tworzenie małej strzałki wskazującej w dół */
+.ol-tooltip-measure:before,
+.ol-tooltip-static:before {
+  border-top: 6px solid rgba(0, 0, 0, 0.5);
+  border-right: 6px solid transparent;
+  border-left: 6px solid transparent;
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  margin-left: -7px;
+  left: 50%;
+}
+.ol-tooltip-static:before {
+  border-top-color: #004d26;
+}
+</style>
