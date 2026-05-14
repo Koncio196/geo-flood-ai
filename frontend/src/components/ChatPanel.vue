@@ -3,8 +3,15 @@
     <h3>
       <span>Chatbot AI</span>
     </h3>
+    
     <div :style="robotStyle" class="robot-container" @click="toggleChat" title="Zwiń/Rozwiń czat">
       <Vue3Lottie :animationData="robotAnimation" :height="80" :width="80" />
+      
+      <transition name="pop">
+        <div v-if="showHint" class="robot-hint-bubble">
+          Kliknij we mnie, aby zadać pytanie.
+        </div>
+      </transition>
     </div>
     
     <div class="chat-content-wrapper">
@@ -31,10 +38,10 @@
 </template>
 
 <script setup>
-import { ref, nextTick, computed } from 'vue'
+import { ref, nextTick, computed, onMounted, onUnmounted, watch } from 'vue'
 import robotAnimation from '@/assets/robot.json'
 
-const isChatOpen = ref(true) // Nowa zmienna stanu otwarcia/zamknięcia
+const isChatOpen = ref(false) 
 const messages = ref([
   { text: 'Witaj! W czym mogę pomóc?', isBot: true }
 ])
@@ -42,25 +49,66 @@ const userInput = ref('')
 const chatHistoryRef = ref(null)
 const isTyping = ref(false) 
 
-// --- FUNKCJA ZWIJANIA/ROZWIJANIA ---
+// --- LOGIKA DYMKA PODPOWIEDZI (HINT BUBBLE) ---
+const showHint = ref(false)
+let hintInterval = null
+let hintTimeout = null
+
+const triggerHint = () => {
+  if (isChatOpen.value) return 
+  showHint.value = true
+  
+  hintTimeout = setTimeout(() => {
+    showHint.value = false
+  }, 7000) 
+}
+
+const startHintCycle = () => {
+  hintInterval = setInterval(() => {
+    triggerHint()
+  }, 12000) 
+}
+
+const stopHintCycle = () => {
+  clearInterval(hintInterval)
+  clearTimeout(hintTimeout)
+  showHint.value = false
+}
+
+watch(isChatOpen, (newVal) => {
+  if (newVal) {
+    stopHintCycle() 
+  } else {
+    startHintCycle() 
+  }
+})
+
+onMounted(() => {
+  if (!isChatOpen.value) {
+    startHintCycle()
+  }
+})
+
+onUnmounted(() => {
+  stopHintCycle()
+})
+// ----------------------------------------------
+
 const toggleChat = () => {
   isChatOpen.value = !isChatOpen.value
   if (isChatOpen.value) {
-    scrollToBottom() // Po otwarciu wracamy na dół rozmowy
+    scrollToBottom() 
   }
 }
 
-// --- DYNAMICZNA POZYCJA ROBOTA (TUTAJ MOŻESZ TO DOSTOSOWAĆ) ---
 const robotStyle = computed(() => {
   const robotWidth = 80;
 
-  // 1. POZYCJA: CZAT OTWARTY
-  const openGapLeft = 20; // Wystaje 20px poza lewą krawędź chatu
-  const openGapBottom = 10; // Trzyma się dołu
+  const openGapLeft = 20; 
+  const openGapBottom = 10; 
 
-  // 2. POZYCJA: CZAT ZAMKNIĘTY (Edytuj te dwie wartości według uznania!)
-  const closedLeft = 240; // Przesuwa robota do wewnątrz panelu (panel ma 350px szerokości)
-  const closedGapBottom = 15; // Podniesienie lekko do góry, jeśli jest taka potrzeba
+  const closedLeft = 240; 
+  const closedGapBottom = 15; 
 
   if (isChatOpen.value) {
     return {
@@ -69,7 +117,7 @@ const robotStyle = computed(() => {
       bottom: `${openGapBottom}px`,
       zIndex: 1500,
       cursor: 'pointer',
-      transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)' // Płynna animacja "lotu" robota
+      transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)' 
     }
   } else {
     return {
@@ -90,7 +138,6 @@ const scrollToBottom = async () => {
   }
 }
 
-// Bezpieczne formatowanie tekstu z Markdown (zastępuje \n na <br>)
 const formatMessage = (text) => text.replace(/\n/g, '<br>')
 
 const sendMessage = async () => {
@@ -101,7 +148,6 @@ const sendMessage = async () => {
   userInput.value = ''
   isTyping.value = true 
   
-  // Jeśli użytkownik z jakiegoś powodu ukrył czat, wysłanie wiadomości go otwiera
   if (!isChatOpen.value) isChatOpen.value = true
   
   await scrollToBottom()
@@ -133,21 +179,17 @@ const sendMessage = async () => {
 </script>
 
 <style scoped>
-/* 1. GŁÓWNY PANEL I ANIMACJA ZWIJANIA */
 .ai-chat-panel {
   position: relative; 
   overflow: visible !important; 
-  /* Płynne skalowanie przestrzeni panelu */
   transition: flex 0.4s cubic-bezier(0.25, 1, 0.5, 1), min-height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .is-collapsed {
-  /* Po zwinięciu zostawiamy panel o wysokości 34px (dokładna wysokość nagłówka H3) */
   flex: 0 0 0px !important; 
   min-height: 0px !important;
 }
 
-/* 2. NAGŁÓWEK JAKO PRZYCISK */
 .chat-header {
   cursor: pointer;
   display: flex;
@@ -158,40 +200,87 @@ const sendMessage = async () => {
 }
 
 .chat-header:hover {
-  background-color: #006b35; /* Lekkie podświetlenie po najechaniu */
+  background-color: #006b35; 
 }
 
-/* 3. KONTENER ROBOTA */
 .robot-container {
-  /* Transform dodany dla efektu "wklikiwania" się robota */
   transition: transform 0.2s ease;
 }
 
 .robot-container:hover {
-  transform: scale(1.1); /* Robot lekko "puchnie" podpowiadając, że jest przyciskiem */
+  transform: scale(1.1); 
 }
 
 .robot-container:active {
   transform: scale(0.95);
 }
 
-/* 4. KONTENER TREŚCI CZATU (Wiadomości i Input) */
+/* --- PROFESJONALNY DYMEK Z PODPOWIEDZIĄ --- */
+.robot-hint-bubble {
+  position: absolute;
+  /* Pozycjonowanie: Lewy-górny róg względem robota */
+  bottom: 85px; 
+  right: 55px; 
+  background-color: #e3f2fd; /* Jasnoniebieski */
+  color: #0d47a1; /* Ciemnoniebieski tekst dla kontrastu */
+  padding: 10px 14px;
+  border-radius: 8px; /* Mniejsze zaokrąglenie wygląda bardziej technicznie/nowocześnie */
+  border: 1px solid #bbdefb;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  pointer-events: none;
+  /* Punkt zaczepienia animacji na ogonku dymka */
+  transform-origin: bottom right; 
+}
+
+/* Ogon (trójkąt) dymka skierowany w prawy-dół (w stronę robota) */
+.robot-hint-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 15px; /* Odsunięcie od prawej krawędzi dymka */
+  border-top: 10px solid #e3f2fd;
+  border-left: 10px solid transparent;
+}
+
+/* Obramowanie ogonka (zgrane z borderem dymka) */
+.robot-hint-bubble::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 14px; /* Przesunięcie o 1px dla stworzenia cienkiej obwódki */
+  border-top: 11px solid #bbdefb;
+  border-left: 11px solid transparent;
+  z-index: -1;
+}
+
+/* Animacja (Transition) - dymek "wyrasta" z prawej strony od dołu */
+.pop-enter-active,
+.pop-leave-active {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(0.5) translate(10px, 10px);
+}
+/* --------------------------------------------- */
+
 .chat-content-wrapper {
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: hidden; /* Odcina zawartość podczas animacji kurczenia */
+  overflow: hidden; 
   opacity: 1;
   transition: opacity 0.3s ease;
 }
 
-/* Ukrywa natychmiast treści, gdy czat jest zwinięty, żeby nie wychodziły za nagłówek */
 .is-collapsed .chat-content-wrapper {
   opacity: 0;
   pointer-events: none;
 }
 
-/* 5. POZOSTAŁE STYLE (Bez zmian) */
 .btn-disabled {
   background-color: #6e6e6e !important;
   cursor: not-allowed !important;
