@@ -188,9 +188,22 @@ onMounted(() => {
   })
 
   // 2. Budowa warstw podkładowych
-  olLayers['osm'] = new TileLayer({ source: new OSM(), visible: false, zIndex: 1 })
+  // Z-Index: 2 (Najwyżej z podkładów)
+  olLayers['osm'] = new TileLayer({ source: new OSM(), visible: false, zIndex: 2 })
   olMap.addLayer(olLayers['osm'])
   
+  // Z-Index: 1 (Pod OSM, ale nad Ortofoto)
+  olLayers['max_powodz_raster'] = new TileLayer({
+    source: new TileWMS({
+      url: '/geoserver/wms',
+      params: { 'LAYERS': 'flood_ai:MaxZarejestrowanyZasiegPowodzi', 'TILED': true },
+      serverType: 'geoserver',
+    }),
+    visible: false, zIndex: 1
+  })
+  olMap.addLayer(olLayers['max_powodz_raster'])
+
+  // Z-Index: 0 (Na samym dole)
   olLayers['ortofoto'] = new TileLayer({
     source: new TileWMS({
       url: '/geoserver/wms',
@@ -233,20 +246,13 @@ onMounted(() => {
   })
   olMap.addLayer(measureLayer)
 
-// 5. Śledzenie kursora (ZAKTUALIZOWANE DLA EPSG:2180)
+  // 5. Śledzenie kursora (W PUWG 1992 / EPSG:2180)
   olMap.on('pointermove', (evt) => {
     if (evt.dragging) return
-    
-    // Przeliczenie z EPSG:3857 (widok mapy) na EPSG:2180 (PUWG 1992)
     const coords2180 = transform(evt.coordinate, 'EPSG:3857', 'EPSG:2180')
-    
-    // W Polsce współrzędne podaje się w metrach (X - północ, Y - wschód).
-    // Zaokrąglamy do 2 miejsc po przecinku (do centymetrów).
     const x = coords2180[1].toFixed(2)
     const y = coords2180[0].toFixed(2)
-    
-    // Dla wygody wysyłamy X pod zmienną 'lat' a Y pod 'lon', żeby nie zmieniać całego Store'a
-    store.updateCoordinates(x, y)
+    store.updateCoordinates(x, y) 
   })
 
   // 6. ZAPYTANIE GetFeatureInfo (Kliknięcie)
@@ -261,6 +267,10 @@ onMounted(() => {
 
     store.featureInfoHtml = '<p>Pobieranie atrybutów z bazy PostGIS...</p>'
     const activeLayer = olLayers[store.activeLayerId]
+    
+    // Zabezpieczenie na wypadek, gdyby warstwy z jakiegoś powodu nie było
+    if (!activeLayer) return;
+
     const viewResolution = olMap.getView().getResolution()
     
     const url = activeLayer.getSource().getFeatureInfoUrl(
