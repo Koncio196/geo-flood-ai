@@ -50,6 +50,11 @@ GIS_LAYERS = {
         "kategoria_zarzadzania": "kategoriazarzadzania",
         "placement": "polozenie",
         "geom_col": "geom"
+    },
+
+    "ground_truth": {
+        "table": "ground_truth",
+        "geom_col": "geom"
     }
 }
 
@@ -81,7 +86,7 @@ def get_flooded_area_for_city(city_name: str) -> dict:
                 g.nazwa,
                 ROUND((ST_Area(ST_Intersection(g.geom, p.geom)) / 10000)::numeric, 2) AS zalana_pow_ha
             FROM gminy g
-            JOIN zasieg_powodzi p ON ST_Intersects(g.geom, p.geom)
+            JOIN ground_truth p ON ST_Intersects(g.geom, p.geom)
             WHERE g.nazwa ILIKE :city_name
             LIMIT 1;
         """)
@@ -118,7 +123,7 @@ def get_buildings_risk_stats(analysis_type: str, city_name: str, building_functi
     Jeżeli użytkownik zapyta o Brzeg, to wtedy chodzi o Brzeg (miasto) w województwie opolskim.
     """
     mapping = {
-        "current_flood": "zasieg_powodzi",
+        "current_flood": "ground_truth",
         "hazard_zone": "obszar_zagrozenia_powodziowego_1"
     }
     
