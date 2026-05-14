@@ -36,6 +36,7 @@ import TileLayer from 'ol/layer/Tile'
 import OSM from 'ol/source/OSM'
 import TileWMS from 'ol/source/TileWMS'
 import { fromLonLat, toLonLat, transform } from 'ol/proj'
+import Attribution from 'ol/control/Attribution' // <-- DODANO: Import kontrolki atrybucji
 
 // --- IMPORTY PROJ4 (DLA EPSG:2180) ---
 import proj4 from 'proj4'
@@ -157,7 +158,6 @@ const toggleMeasurement = (type) => {
   })
 }
 
-// Funkcja czyszczenia mapy z pomiarów i rysunków
 const clearMeasurements = () => {
   if (measureSource) measureSource.clear()
   
@@ -177,19 +177,25 @@ const clearMeasurements = () => {
 }
 
 onMounted(() => {
-  // 1. Inicjalizacja Mapy z przypisanymi zmiennymi min/max zoom
+  // 1. Inicjalizacja Mapy z przypisaną kontrolką Atrybucji
   olMap = new Map({
     target: mapContainer.value,
     view: new View({
       center: fromLonLat([16.8909, 50.9490]),
       zoom: 8,
-      minZoom: MIN_ZOOM, // <-- Podpięta zmienna minimalnego zoomu
-      maxZoom: MAX_ZOOM  // <-- Podpięta zmienna maksymalnego zoomu
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM
     }),
-    controls: [] 
+    controls: [
+      // Przywracamy domyślną kontrolkę atrybucji. 'collapsible: false' sprawia, że tekst jest widoczny cały czas, a nie ukryty pod ikoną "i"
+      new Attribution({
+        collapsible: false 
+      })
+    ] 
   })
 
-  // 2. Budowa warstw podkładowych
+  // 2. Budowa warstw podkładowych (Z dodanymi Atrybucjami)
+  // UWAGA: Nowe źródło 'new OSM()' ma wbudowaną atrybucję domyślnie, więc nie trzeba jej tu pisać
   olLayers['osm'] = new TileLayer({ source: new OSM(), visible: false, zIndex: 2 })
   olMap.addLayer(olLayers['osm'])
   
@@ -198,6 +204,8 @@ onMounted(() => {
       url: '/geoserver/wms',
       params: { 'LAYERS': 'flood_ai:MaxZarejestrowanyZasiegPowodzi', 'TILED': true },
       serverType: 'geoserver',
+      // DODANO atrybucję dla Sentinela (Copernicus)
+      attributions: 'Contains modified &copy; <a  href="https://dataspace.copernicus.eu/data-collections/copernicus-sentinel-missions/sentinel-1" target="_blank">Copernicus Sentinel Data</a> [2024] for Sentinel data'
     }),
     visible: false, zIndex: 1
   })
@@ -208,6 +216,8 @@ onMounted(() => {
       url: '/geoserver/wms',
       params: { 'LAYERS': 'flood_ai:ORTOFOTOMAPA', 'TILED': true },
       serverType: 'geoserver',
+      // DODANO atrybucję dla GUGiK (skopiowaną z Twojego starego kodu script.js)
+      attributions: ' Ortofotomapa Standardowa &copy; <a href="https://www.geoportal.gov.pl" target="_blank">GUGiK</a>'
     }),
     visible: false, zIndex: 0
   })
@@ -314,13 +324,36 @@ watch(() => store.currentTimelapseDate, (newDate) => {
 const zoom = (delta) => {
   if (!olMap) return
   const view = olMap.getView()
-  // Animacja przybliżania/oddalania używająca Twoich przycisków +/- będzie teraz naturalnie blokowana
-  // przez OpenLayers po osiągnięciu minZoom lub maxZoom.
   view.animate({ zoom: view.getZoom() + delta, duration: 250 })
 }
 </script>
 
 <style scoped>
+/* --- STYLIZACJA KONTROLKI ATRYBUCJI OPENLAYERS --- */
+/* Nadpisujemy domyślne style, aby podziękowania wyglądały elegancko w prawym dolnym rogu mapy */
+:deep(.ol-attribution) {
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+:deep(.ol-attribution ul) {
+  margin: 0;
+  padding: 0;
+  color: #333;
+}
+:deep(.ol-attribution a) {
+  color: #004d26;
+  text-decoration: none;
+  font-weight: bold;
+}
+:deep(.ol-attribution a:hover) {
+  text-decoration: underline;
+}
+
 /* -------------------------------------
    STYLE DLA NAKŁADEK (TOOLTIPÓW) POMIARU
    ------------------------------------- */
@@ -341,11 +374,10 @@ const zoom = (delta) => {
   font-weight: bold;
 }
 .ol-tooltip-static {
-  background-color: #004d26; /* Używamy Twojego głównego zielonego koloru */
+  background-color: #004d26; 
   color: white;
   border: 1px solid white;
 }
-/* Tworzenie małej strzałki wskazującej w dół */
 .ol-tooltip-measure:before,
 .ol-tooltip-static:before {
   border-top: 6px solid rgba(0, 0, 0, 0.5);
