@@ -54,13 +54,19 @@ import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style'
 import { getArea, getLength } from 'ol/sphere'
 import { unByKey } from 'ol/Observable'
 
+// ==========================================
+// ZMIENNE DO KONFIGURACJI SKALI MAPY
+// ==========================================
+const MIN_ZOOM = 9;  // Minimalny zoom (oddalenie)
+const MAX_ZOOM = 20; // Maksymalny zoom (przybliżenie)
+
 const store = useMapStore()
 const mapContainer = ref(null)
 let olMap = null
 const olLayers = {} 
 
 // --- STAN I ZMIENNE DLA POMIARÓW ---
-const activeMeasurementTool = ref(null) // 'length', 'area' lub null
+const activeMeasurementTool = ref(null)
 let measureSource = null
 let measureLayer = null
 let drawInteraction = null
@@ -98,7 +104,6 @@ const toggleMeasurement = (type) => {
     drawInteraction = null
   }
 
-  // Jeśli kliknięto to samo narzędzie - wyłącz je
   if (activeMeasurementTool.value === type) {
     activeMeasurementTool.value = null
     return 
@@ -121,22 +126,20 @@ const toggleMeasurement = (type) => {
   olMap.addInteraction(drawInteraction)
   createMeasureTooltip()
 
-  // Gdy zaczynamy rysować nową linię/poligon
   drawInteraction.on('drawstart', (evt) => {
     sketch = evt.feature
     let tooltipCoord = evt.coordinate
 
-    // Aktualizuj na bieżąco podczas przesuwania myszki
     listener = sketch.getGeometry().on('change', (evt) => {
       const geom = evt.target
       let output
       if (geom.getType() === 'Polygon') {
         const area = getArea(geom)
-        output = (area / 10000).toFixed(3) + ' ha' // Przeliczenie na hektary
+        output = (area / 10000).toFixed(3) + ' ha'
         tooltipCoord = geom.getInteriorPoint().getCoordinates()
       } else if (geom.getType() === 'LineString') {
         const length = getLength(geom)
-        output = (length / 1000).toFixed(3) + ' km' // Przeliczenie na kilometry
+        output = (length / 1000).toFixed(3) + ' km'
         tooltipCoord = geom.getLastCoordinate()
       }
       measureTooltipElement.innerHTML = output
@@ -144,13 +147,12 @@ const toggleMeasurement = (type) => {
     })
   })
 
-  // Gdy kończymy rysowanie (np. podwójne kliknięcie)
   drawInteraction.on('drawend', () => {
     measureTooltipElement.className = 'ol-tooltip ol-tooltip-static'
     measureTooltipOverlay.setOffset([0, -7])
     sketch = null
     measureTooltipElement = null
-    createMeasureTooltip() // Przygotuj nowy dymek pod kolejny pomiar
+    createMeasureTooltip() 
     unByKey(listener)
   })
 }
@@ -159,7 +161,6 @@ const toggleMeasurement = (type) => {
 const clearMeasurements = () => {
   if (measureSource) measureSource.clear()
   
-  // Usuń wszystkie utrwalone dymki pomiarowe
   const overlays = olMap.getOverlays().getArray()
   for (let i = overlays.length - 1; i >= 0; i--) {
     const overlay = overlays[i]
@@ -169,7 +170,6 @@ const clearMeasurements = () => {
     }
   }
 
-  // Odśwież bieżący dymek roboczy, jeśli narzędzie jest nadal włączone
   if (activeMeasurementTool.value) {
     olMap.removeOverlay(measureTooltipOverlay)
     createMeasureTooltip()
@@ -177,22 +177,22 @@ const clearMeasurements = () => {
 }
 
 onMounted(() => {
-  // 1. Inicjalizacja Mapy
+  // 1. Inicjalizacja Mapy z przypisanymi zmiennymi min/max zoom
   olMap = new Map({
     target: mapContainer.value,
     view: new View({
-      center: fromLonLat([17.02, 50.67]),
+      center: fromLonLat([16.8909, 50.9490]),
       zoom: 8,
+      minZoom: MIN_ZOOM, // <-- Podpięta zmienna minimalnego zoomu
+      maxZoom: MAX_ZOOM  // <-- Podpięta zmienna maksymalnego zoomu
     }),
     controls: [] 
   })
 
   // 2. Budowa warstw podkładowych
-  // Z-Index: 2 (Najwyżej z podkładów)
   olLayers['osm'] = new TileLayer({ source: new OSM(), visible: false, zIndex: 2 })
   olMap.addLayer(olLayers['osm'])
   
-  // Z-Index: 1 (Pod OSM, ale nad Ortofoto)
   olLayers['max_powodz_raster'] = new TileLayer({
     source: new TileWMS({
       url: '/geoserver/wms',
@@ -203,7 +203,6 @@ onMounted(() => {
   })
   olMap.addLayer(olLayers['max_powodz_raster'])
 
-  // Z-Index: 0 (Na samym dole)
   olLayers['ortofoto'] = new TileLayer({
     source: new TileWMS({
       url: '/geoserver/wms',
@@ -242,7 +241,7 @@ onMounted(() => {
       stroke: new Stroke({ color: '#ffcc33', width: 2 }),
       image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#ffcc33' }) })
     }),
-    zIndex: 9999 // Pomiary muszą być zawsze widoczne na wierzchu!
+    zIndex: 9999
   })
   olMap.addLayer(measureLayer)
 
@@ -257,7 +256,6 @@ onMounted(() => {
 
   // 6. ZAPYTANIE GetFeatureInfo (Kliknięcie)
   olMap.on('singleclick', async (evt) => {
-    // KLUCZOWE: Jeśli aktualnie mierzymy, ignorujemy to kliknięcie (nie odpytujemy bazy)
     if (activeMeasurementTool.value) return;
 
     if (!store.activeLayerId) {
@@ -268,7 +266,6 @@ onMounted(() => {
     store.featureInfoHtml = '<p>Pobieranie atrybutów z bazy PostGIS...</p>'
     const activeLayer = olLayers[store.activeLayerId]
     
-    // Zabezpieczenie na wypadek, gdyby warstwy z jakiegoś powodu nie było
     if (!activeLayer) return;
 
     const viewResolution = olMap.getView().getResolution()
@@ -317,6 +314,8 @@ watch(() => store.currentTimelapseDate, (newDate) => {
 const zoom = (delta) => {
   if (!olMap) return
   const view = olMap.getView()
+  // Animacja przybliżania/oddalania używająca Twoich przycisków +/- będzie teraz naturalnie blokowana
+  // przez OpenLayers po osiągnięciu minZoom lub maxZoom.
   view.animate({ zoom: view.getZoom() + delta, duration: 250 })
 }
 </script>
