@@ -274,6 +274,7 @@ const sendMessage = async () => {
   overflow: hidden; 
   opacity: 1;
   transition: opacity 0.3s ease;
+  min-height: 0; /* <--- KLUCZ DO ZATRZYMANIA PUCHNIĘCIA W TYM KOMPONENCIE */
 }
 
 .is-collapsed .chat-content-wrapper {
