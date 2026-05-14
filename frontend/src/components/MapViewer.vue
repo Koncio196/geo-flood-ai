@@ -35,7 +35,15 @@ import View from 'ol/View'
 import TileLayer from 'ol/layer/Tile'
 import OSM from 'ol/source/OSM'
 import TileWMS from 'ol/source/TileWMS'
-import { fromLonLat, toLonLat } from 'ol/proj'
+import { fromLonLat, toLonLat, transform } from 'ol/proj'
+
+// --- IMPORTY PROJ4 (DLA EPSG:2180) ---
+import proj4 from 'proj4'
+import { register } from 'ol/proj/proj4'
+
+// --- REJESTRACJA UKŁADU PUWG 1992 (EPSG:2180) ---
+proj4.defs("EPSG:2180", "+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +units=m +no_defs");
+register(proj4);
 
 // --- IMPORTY DO POMIARÓW I RYSOWANIA ---
 import VectorLayer from 'ol/layer/Vector'
@@ -225,11 +233,20 @@ onMounted(() => {
   })
   olMap.addLayer(measureLayer)
 
-  // 5. Śledzenie kursora
+// 5. Śledzenie kursora (ZAKTUALIZOWANE DLA EPSG:2180)
   olMap.on('pointermove', (evt) => {
     if (evt.dragging) return
-    const coords = toLonLat(evt.coordinate)
-    store.updateCoordinates(coords[1].toFixed(4), coords[0].toFixed(4)) 
+    
+    // Przeliczenie z EPSG:3857 (widok mapy) na EPSG:2180 (PUWG 1992)
+    const coords2180 = transform(evt.coordinate, 'EPSG:3857', 'EPSG:2180')
+    
+    // W Polsce współrzędne podaje się w metrach (X - północ, Y - wschód).
+    // Zaokrąglamy do 2 miejsc po przecinku (do centymetrów).
+    const x = coords2180[1].toFixed(2)
+    const y = coords2180[0].toFixed(2)
+    
+    // Dla wygody wysyłamy X pod zmienną 'lat' a Y pod 'lon', żeby nie zmieniać całego Store'a
+    store.updateCoordinates(x, y)
   })
 
   // 6. ZAPYTANIE GetFeatureInfo (Kliknięcie)

@@ -30,7 +30,7 @@ export const useMapStore = defineStore('map', () => {
     { id: 'powiaty', name: 'Powiaty', layerName: 'flood_ai:powiaty', visible: true },
     { id: 'gminy', name: 'Gminy', layerName: 'flood_ai:gminy', visible: true },
     { id: 'budynki', name: 'Budynki', layerName: 'flood_ai:budynki', visible: true },
-    { id: 'drogi', name: 'Drogi', layerName: 'flood_ai:drogi', visible: true },
+    { id: 'drogi', name: 'Drogi', layerName: 'flood_ai:drogi', visible: false },
     { id: 'ozp_1', name: 'Obszar zagrożenia powodziowego 1%', layerName: 'flood_ai:obszar_zagrozenia_powodziowego_1', visible: false },
     { id: 'cems', name: 'CEMS - Rapid Mapping', layerName: 'flood_ai:copernicus_flood_area', visible: false },
     { id: 'max_powodz', name: 'Maksymalny Zaobserowany Zasięg Powodzi', layerName: 'flood_ai:maksymalny_zasieg_powodzi', visible: false },

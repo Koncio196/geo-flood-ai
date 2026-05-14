@@ -2,7 +2,7 @@
   <div class="container" :class="{ 'sidebar-closed': !store.isSidebarOpen }">
     
     <div class="header">
-      GeoFloodAI
+      Portal Mapowy GeoFloodAI
     </div>
 
     <LayerPanel />
@@ -15,10 +15,10 @@
 
     <div class="footer">
       <div class="footer-left">
-        Układ wyświetlania: EPSG:3857 (WGS 84 / Pseudo-Mercator)
+        Układ wyświetlania: EPSG:2180 (PUWG 1992)
       </div>
       <div class="footer-center" id="mouse-coords">
-        Lat: {{ store.coordinates.lat }}, Lon: {{ store.coordinates.lon }}
+        X: {{ store.coordinates.lat }}, Y: {{ store.coordinates.lon }}
       </div>
       <div class="footer-right">
         Autor: Paweł Konecki
